@@ -1,0 +1,79 @@
+name: Build Aurum Android APK
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ main ]
+    paths:
+      - 'Aurum-AI-37-v0.6.2-GITHUB-BUILD.zip'
+      - '.github/workflows/build-android.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install Android 35 build tools
+        shell: bash
+        run: |
+          yes | sdkmanager --licenses >/dev/null 2>&1 || true
+          sdkmanager 'platforms;android-35' 'build-tools;35.0.0'
+
+      - name: Extract Aurum source
+        shell: bash
+        run: |
+          test -f 'Aurum-AI-37-v0.6.2-GITHUB-BUILD.zip'
+          rm -rf extracted
+          mkdir -p extracted
+          unzip -q 'Aurum-AI-37-v0.6.2-GITHUB-BUILD.zip' -d extracted
+          test -f 'extracted/Aurum-AI-37-v0.6.2-clean-install-source/gradlew'
+          chmod +x 'extracted/Aurum-AI-37-v0.6.2-clean-install-source/gradlew'
+
+      - name: Build clean debug APK
+        working-directory: extracted/Aurum-AI-37-v0.6.2-clean-install-source
+        shell: bash
+        run: |
+          ./gradlew --no-daemon --stacktrace clean assembleDebug
+
+      - name: Prepare APK artifact
+        shell: bash
+        run: |
+          mkdir -p artifact
+          cp 'extracted/Aurum-AI-37-v0.6.2-clean-install-source/app/build/outputs/apk/debug/app-debug.apk' \
+             'artifact/Aurum-AI-37-v0.6.2-clean-debug.apk'
+          sha256sum 'artifact/Aurum-AI-37-v0.6.2-clean-debug.apk' | tee 'artifact/SHA256SUMS.txt'
+          ls -lh artifact/
+
+      - name: Upload installable APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: Aurum-AI-37-v0.6.2-clean-debug-apk
+          path: artifact/
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Upload Gradle reports on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: aurum-gradle-failure-reports
+          path: |
+            extracted/Aurum-AI-37-v0.6.2-clean-install-source/**/build/reports/**
+          if-no-files-found: ignore
+          retention-days: 7
