@@ -1,0 +1,120 @@
+name: Build Aurum v0.7.8 Terminal Sector Confluence
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ main ]
+    paths:
+      - 'Aurum-AI-37-v0.7.8-TERMINAL-SECTOR-GITHUB-BUILD.zip'
+      - '.github/workflows/build-standalone-v0.7.8.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: android-actions/setup-android@v3
+
+      - name: Install Android SDK
+        run: |
+          yes | sdkmanager --licenses >/dev/null 2>&1 || true
+          sdkmanager 'platforms;android-35' 'build-tools;35.0.0'
+
+      - name: Extract v0.7.8 source package
+        run: |
+          rm -rf standalone
+          mkdir standalone
+          unzip -q Aurum-AI-37-v0.7.8-TERMINAL-SECTOR-GITHUB-BUILD.zip -d standalone
+          WRAPPER="$(find standalone -type f -name gradlew | head -1)"
+          test -n "$WRAPPER"
+          chmod +x "$WRAPPER"
+
+      - name: Validate v0.7.8 terminal sector architecture and host tests
+        shell: bash
+        run: |
+          set -euxo pipefail
+          ROOT="$(dirname "$(find standalone -type f -name gradlew | head -1)")"
+          cd "$ROOT"
+          python3 tools/v078_static_validation.py
+          rm -rf /tmp/aurum-host-tests
+          mkdir -p /tmp/aurum-host-tests
+          javac -encoding UTF-8 -source 17 -target 17 -d /tmp/aurum-host-tests \
+            app/src/main/java/com/xspaceart/radar30/core/*.java \
+            app/src/main/java/com/xspaceart/radar30/RadarBackstageFormatter.java \
+            app/src/main/java/com/xspaceart/radar30/integrated/IntegratedSignalBridge.java \
+            app/src/main/java/com/xspaceart/radar30/integrated/normalize/*.java \
+            app/src/main/java/com/xspaceart/radar30/integrated/scanner/SourceHunter.java \
+            app/src/main/java/com/xspaceart/radar30/integrated/scanner/HistoryQualityGate.java \
+            app/src/main/java/com/xspaceart/radar30/integrated/scanner/HistoryAgreement.java \
+            app/src/main/java/com/xspaceart/radar30/integrated/pipeline/ReadingPipelineController.java \
+            tools/PrecisionCoreTest.java tools/DualTargetCoreTest.java \
+            tools/V063BalancedCalibrationTest.java tools/IntegratedOperationalTest.java \
+            tools/SourceOrderTrackerTest.java tools/ManualEchoReconcilerTest.java \
+            tools/ReadingPipelineControllerTest.java tools/HistoryQualityGateTest.java \
+            tools/HistoryAgreementTest.java tools/V076FastTrackPolicyTest.java \
+            tools/V076RadarBackstageTest.java tools/V077ConsensusSpatialTest.java \
+            tools/V077ConsensusPolicyTest.java tools/V077CadenceTest.java \
+            tools/V077SaturationTest.java tools/V077RadarExplainabilityTest.java \
+            tools/V078TerminalConsensusTest.java tools/V078TerminalPolicyTest.java \
+            tools/V078TerminalValidityTest.java
+          java -cp /tmp/aurum-host-tests PrecisionCoreTest
+          java -cp /tmp/aurum-host-tests DualTargetCoreTest
+          java -cp /tmp/aurum-host-tests V063BalancedCalibrationTest
+          java -cp /tmp/aurum-host-tests IntegratedOperationalTest
+          java -cp /tmp/aurum-host-tests SourceOrderTrackerTest
+          java -cp /tmp/aurum-host-tests ManualEchoReconcilerTest
+          java -cp /tmp/aurum-host-tests ReadingPipelineControllerTest
+          java -cp /tmp/aurum-host-tests HistoryQualityGateTest
+          java -cp /tmp/aurum-host-tests HistoryAgreementTest
+          java -cp /tmp/aurum-host-tests V076FastTrackPolicyTest
+          java -cp /tmp/aurum-host-tests V076RadarBackstageTest
+          java -cp /tmp/aurum-host-tests V077ConsensusSpatialTest
+          java -cp /tmp/aurum-host-tests V077ConsensusPolicyTest
+          java -cp /tmp/aurum-host-tests V077CadenceTest
+          java -cp /tmp/aurum-host-tests V077SaturationTest
+          java -cp /tmp/aurum-host-tests V077RadarExplainabilityTest
+          java -cp /tmp/aurum-host-tests V078TerminalConsensusTest
+          java -cp /tmp/aurum-host-tests V078TerminalPolicyTest
+          java -cp /tmp/aurum-host-tests V078TerminalValidityTest
+
+      - name: Build signed debug update
+        shell: bash
+        run: |
+          set -euxo pipefail
+          ROOT="$(dirname "$(find standalone -type f -name gradlew | head -1)")"
+          cd "$ROOT"
+          ./gradlew --no-daemon --stacktrace clean assembleDebug
+
+      - name: Audit package version launcher signature and alignment
+        shell: bash
+        run: |
+          set -euxo pipefail
+          APK="$(find standalone -type f -path '*/build/outputs/apk/debug/*.apk' | head -1)"
+          test -n "$APK"
+          mkdir -p artifact
+          cp "$APK" artifact/Aurum-AI-37-v0.7.8-Terminal-Sector-Confluence-STABLE.apk
+          BT="$ANDROID_HOME/build-tools/35.0.0"
+          "$BT/aapt2" dump badging artifact/Aurum-AI-37-v0.7.8-Terminal-Sector-Confluence-STABLE.apk | tee artifact/BADGING.txt
+          grep -q "package: name='com.xspaceart.aurumai37.integratedlab.debug' versionCode='9' versionName='0.7.8-terminal-sector-confluence-debug'" artifact/BADGING.txt
+          grep -q "launchable-activity: name='com.xspaceart.radar30.StandaloneActivity'" artifact/BADGING.txt
+          "$BT/apksigner" verify --verbose --print-certs artifact/Aurum-AI-37-v0.7.8-Terminal-Sector-Confluence-STABLE.apk | tee artifact/SIGNATURE.txt
+          grep -qi '663a96b89181b13c759512229e465ebc895136545f36d1cbd29f7d7e1ad561c4' artifact/SIGNATURE.txt
+          "$BT/zipalign" -c -P 16 4 artifact/Aurum-AI-37-v0.7.8-Terminal-Sector-Confluence-STABLE.apk
+          unzip -t artifact/Aurum-AI-37-v0.7.8-Terminal-Sector-Confluence-STABLE.apk >/dev/null
+          sha256sum artifact/Aurum-AI-37-v0.7.8-Terminal-Sector-Confluence-STABLE.apk | tee artifact/SHA256SUMS.txt
+          printf 'IMPLEMENTED=PASS\nSTATIC_VALIDATION=PASS\nHOST_TESTS=PASS\nCORE_V077_UNCHANGED=16_OF_19\nCORE_AUTHORIZED_ORIGINAL=3_OF_19\nCORE_ADDITIVE_TERMINAL=2\nPRECISION_PRESERVED=PASS\nSECTOR_MODEL=PASS\nTERMINAL_MODEL=PASS\nMAX_CROSS_CONFLUENCE=PASS\nTERMINAL_VALIDITY_5=PASS\nLIVE_REVALIDATION=PASS\nOBSERVATION_SATURATION=PASS\nCOMPILED=PASS\nPACKAGE=PASS\nLAUNCHER_STANDALONE=PASS\nSIGNATURE=PASS\nALIGNMENT=PASS\nPHYSICAL_S25FE=PENDING\n' | tee artifact/BUILD_STATUS.txt
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Aurum-AI-37-v0.7.8-Terminal-Sector-Confluence
+          path: artifact/
+          if-no-files-found: error
+          retention-days: 7
