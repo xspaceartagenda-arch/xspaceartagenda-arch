@@ -1,0 +1,104 @@
+name: Build Aurum v0.7.11 Performance Incremental
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ main ]
+    paths:
+      - 'Aurum-AI-37-v0.7.11-PERFORMANCE-INCREMENTAL-GITHUB-BUILD.zip'
+      - '.github/workflows/build-standalone-v0.7.11-performance-incremental.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: android-actions/setup-android@v3
+
+      - name: Install Android SDK
+        run: |
+          yes | sdkmanager --licenses >/dev/null 2>&1 || true
+          sdkmanager 'platforms;android-35' 'build-tools;35.0.0'
+
+      - name: Extract v0.7.11 source package
+        run: |
+          rm -rf standalone
+          mkdir standalone
+          unzip -q Aurum-AI-37-v0.7.11-PERFORMANCE-INCREMENTAL-GITHUB-BUILD.zip -d standalone
+          WRAPPER="$(find standalone -type f -name gradlew | head -1)"
+          test -n "$WRAPPER"
+          chmod +x "$WRAPPER"
+
+      - name: Validate performance architecture and host tests
+        shell: bash
+        run: |
+          set -euxo pipefail
+          ROOT="$(dirname "$(find standalone -type f -name gradlew | head -1)")"
+          cd "$ROOT"
+          python3 tools/v0711_static_validation.py
+          rm -rf /tmp/aurum-host-tests
+          mkdir -p /tmp/aurum-host-tests
+          javac -encoding UTF-8 -source 17 -target 17 -d /tmp/aurum-host-tests \
+            app/src/main/java/com/xspaceart/radar30/core/*.java \
+            app/src/main/java/com/xspaceart/radar30/RadarBackstageFormatter.java \
+            app/src/main/java/com/xspaceart/radar30/integrated/IntegratedSignalBridge.java \
+            app/src/main/java/com/xspaceart/radar30/integrated/normalize/*.java \
+            app/src/main/java/com/xspaceart/radar30/integrated/scanner/SourceHunter.java \
+            app/src/main/java/com/xspaceart/radar30/integrated/scanner/HistoryQualityGate.java \
+            app/src/main/java/com/xspaceart/radar30/integrated/scanner/HistoryAgreement.java \
+            app/src/main/java/com/xspaceart/radar30/integrated/pipeline/ReadingPipelineController.java \
+            tools/PrecisionCoreTest.java tools/DualTargetCoreTest.java \
+            tools/V063BalancedCalibrationTest.java tools/IntegratedOperationalTest.java \
+            tools/SourceOrderTrackerTest.java tools/ManualEchoReconcilerTest.java \
+            tools/ReadingPipelineControllerTest.java tools/HistoryQualityGateTest.java \
+            tools/HistoryAgreementTest.java tools/V076FastTrackPolicyTest.java \
+            tools/V076RadarBackstageTest.java tools/V077ConsensusSpatialTest.java \
+            tools/V077ConsensusPolicyTest.java tools/V077CadenceTest.java \
+            tools/V077SaturationTest.java tools/V077RadarExplainabilityTest.java \
+            tools/V078TerminalConsensusTest.java tools/V078TerminalPolicyTest.java \
+            tools/V078TerminalValidityTest.java tools/V0711IncrementalPipelineTest.java
+          for t in PrecisionCoreTest DualTargetCoreTest V063BalancedCalibrationTest IntegratedOperationalTest SourceOrderTrackerTest ManualEchoReconcilerTest ReadingPipelineControllerTest HistoryQualityGateTest HistoryAgreementTest V076FastTrackPolicyTest V076RadarBackstageTest V077ConsensusSpatialTest V077ConsensusPolicyTest V077CadenceTest V077SaturationTest V077RadarExplainabilityTest V078TerminalConsensusTest V078TerminalPolicyTest V078TerminalValidityTest V0711IncrementalPipelineTest; do
+            java -cp /tmp/aurum-host-tests "$t"
+          done
+
+      - name: Build signed debug performance update
+        shell: bash
+        run: |
+          set -euxo pipefail
+          ROOT="$(dirname "$(find standalone -type f -name gradlew | head -1)")"
+          cd "$ROOT"
+          ./gradlew --no-daemon --stacktrace clean assembleDebug
+
+      - name: Audit package version launcher signature and alignment
+        shell: bash
+        run: |
+          set -euxo pipefail
+          APK="$(find standalone -type f -path '*/build/outputs/apk/debug/*.apk' | head -1)"
+          test -n "$APK"
+          mkdir -p artifact
+          cp "$APK" artifact/Aurum-AI-37-v0.7.11-Performance-Incremental-STABLE.apk
+          BT="$ANDROID_HOME/build-tools/35.0.0"
+          "$BT/aapt2" dump badging artifact/Aurum-AI-37-v0.7.11-Performance-Incremental-STABLE.apk | tee artifact/BADGING.txt
+          grep -q "package: name='com.xspaceart.aurumai37.integratedlab.debug' versionCode='12' versionName='0.7.11-performance-incremental-debug'" artifact/BADGING.txt
+          grep -q "launchable-activity: name='com.xspaceart.radar30.StandaloneActivity'" artifact/BADGING.txt
+          "$BT/apksigner" verify --verbose --print-certs artifact/Aurum-AI-37-v0.7.11-Performance-Incremental-STABLE.apk | tee artifact/SIGNATURE.txt
+          grep -qi '663a96b89181b13c759512229e465ebc895136545f36d1cbd29f7d7e1ad561c4' artifact/SIGNATURE.txt
+          "$BT/zipalign" -c -P 16 4 artifact/Aurum-AI-37-v0.7.11-Performance-Incremental-STABLE.apk
+          unzip -t artifact/Aurum-AI-37-v0.7.11-Performance-Incremental-STABLE.apk >/dev/null
+          sha256sum artifact/Aurum-AI-37-v0.7.11-Performance-Incremental-STABLE.apk | tee artifact/SHA256SUMS.txt
+          printf 'IMPLEMENTED=PASS\nBASE=V0710_ROLLBACK_V078\nSIGNAL_BRAIN_V078=PRESERVED\nSIGNAL_LOGIC_CHANGED=NO\nHOST_TESTS=PASS\nCAPTURE_LATEST_FRAME=PASS\nOCR_NO_BACKLOG=PASS\nVISUAL_CHANGE_GATE=PASS\nTWO_SCAN_CONFIRMATION=PRESERVED\nFAST_RESYNC_NO_CORE_RESET=PASS\nBACKGROUND_MEDIA_PROJECTION=PASS\nCATCHUP_UP_TO_12=PASS\nCOMPILED=PASS\nPACKAGE=PASS\nVERSION_ORDER=PASS\nLAUNCHER_STANDALONE=PASS\nSIGNATURE=PASS\nALIGNMENT=PASS\nPHYSICAL_S25FE=PENDING\n' | tee artifact/BUILD_STATUS.txt
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Aurum-AI-37-v0.7.11-Performance-Incremental
+          path: artifact/
+          if-no-files-found: error
+          retention-days: 7
