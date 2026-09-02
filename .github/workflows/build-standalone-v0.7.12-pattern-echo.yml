@@ -1,0 +1,138 @@
+name: Build Aurum v0.7.12 Pattern Echo
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ main ]
+    paths:
+      - 'Aurum-AI-37-v0.7.12-PATTERN-ECHO-OVERLAY.zip'
+      - '.github/workflows/build-standalone-v0.7.12-pattern-echo.yml'
+      - 'Aurum-AI-37-v0.7.11-PERFORMANCE-INCREMENTAL-GITHUB-BUILD.zip'
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: android-actions/setup-android@v3
+
+      - name: Install Android SDK
+        run: |
+          yes | sdkmanager --licenses >/dev/null 2>&1 || true
+          sdkmanager 'platforms;android-35' 'build-tools;35.0.0'
+
+      - name: Extract audited v0.7.11 base
+        shell: bash
+        run: |
+          set -euxo pipefail
+          rm -rf standalone
+          mkdir standalone
+          unzip -q Aurum-AI-37-v0.7.11-PERFORMANCE-INCREMENTAL-GITHUB-BUILD.zip -d standalone
+          WRAPPER="$(find standalone -type f -name gradlew | head -1)"
+          test -n "$WRAPPER"
+          chmod +x "$WRAPPER"
+          PROJECT_ROOT="$(realpath "$(dirname "$WRAPPER")")"
+          echo "ROOT=$PROJECT_ROOT" >> "$GITHUB_ENV"
+
+      - name: Validate base before overlay
+        shell: bash
+        run: |
+          set -euxo pipefail
+          cd "$ROOT"
+          python3 tools/v0711_static_validation.py
+          find app/src/main/java/com/xspaceart/radar30/core -type f -name '*.java' -print0 | sort -z | xargs -0 sha256sum > /tmp/core-before.sha256
+
+      - name: Apply Pattern Echo read-only overlay
+        shell: bash
+        run: |
+          set -euxo pipefail
+          rm -rf /tmp/v0712-pattern-echo-overlay
+          mkdir -p /tmp/v0712-pattern-echo-overlay
+          unzip -q "$GITHUB_WORKSPACE/Aurum-AI-37-v0.7.12-PATTERN-ECHO-OVERLAY.zip" -d /tmp/v0712-pattern-echo-overlay
+          OVERLAY_ROOT=/tmp/v0712-pattern-echo-overlay/v0712-pattern-echo-overlay
+          test -f "$OVERLAY_ROOT/tools/patch_v0712_project.py"
+          mkdir -p "$ROOT/app/src/main/java/com/xspaceart/radar30/echo"
+          cp "$OVERLAY_ROOT"/app/src/main/java/com/xspaceart/radar30/echo/*.java \
+             "$ROOT/app/src/main/java/com/xspaceart/radar30/echo/"
+          cp "$OVERLAY_ROOT/tools/V0712PatternEchoTest.java" "$ROOT/tools/"
+          cp "$OVERLAY_ROOT/tools/v0712_static_validation.py" "$ROOT/tools/"
+          python3 "$OVERLAY_ROOT/tools/patch_v0712_project.py" "$ROOT"
+          cd "$ROOT"
+          find app/src/main/java/com/xspaceart/radar30/core -type f -name '*.java' -print0 | sort -z | xargs -0 sha256sum > /tmp/core-after.sha256
+          diff -u /tmp/core-before.sha256 /tmp/core-after.sha256
+
+      - name: Run legacy host regression plus Pattern Echo tests
+        shell: bash
+        run: |
+          set -euxo pipefail
+          cd "$ROOT"
+          python3 tools/v0712_static_validation.py
+          rm -rf /tmp/aurum-host-tests
+          mkdir -p /tmp/aurum-host-tests
+          javac -encoding UTF-8 -source 17 -target 17 -d /tmp/aurum-host-tests \
+            app/src/main/java/com/xspaceart/radar30/core/*.java \
+            app/src/main/java/com/xspaceart/radar30/echo/PatternEchoEngine.java \
+            app/src/main/java/com/xspaceart/radar30/RadarBackstageFormatter.java \
+            app/src/main/java/com/xspaceart/radar30/integrated/IntegratedSignalBridge.java \
+            app/src/main/java/com/xspaceart/radar30/integrated/normalize/*.java \
+            app/src/main/java/com/xspaceart/radar30/integrated/scanner/SourceHunter.java \
+            app/src/main/java/com/xspaceart/radar30/integrated/scanner/HistoryQualityGate.java \
+            app/src/main/java/com/xspaceart/radar30/integrated/scanner/HistoryAgreement.java \
+            app/src/main/java/com/xspaceart/radar30/integrated/pipeline/ReadingPipelineController.java \
+            tools/PrecisionCoreTest.java tools/DualTargetCoreTest.java \
+            tools/V063BalancedCalibrationTest.java tools/IntegratedOperationalTest.java \
+            tools/SourceOrderTrackerTest.java tools/ManualEchoReconcilerTest.java \
+            tools/ReadingPipelineControllerTest.java tools/HistoryQualityGateTest.java \
+            tools/HistoryAgreementTest.java tools/V076FastTrackPolicyTest.java \
+            tools/V076RadarBackstageTest.java tools/V077ConsensusSpatialTest.java \
+            tools/V077ConsensusPolicyTest.java tools/V077CadenceTest.java \
+            tools/V077SaturationTest.java tools/V077RadarExplainabilityTest.java \
+            tools/V078TerminalConsensusTest.java tools/V078TerminalPolicyTest.java \
+            tools/V078TerminalValidityTest.java tools/V0711IncrementalPipelineTest.java \
+            tools/V0712PatternEchoTest.java
+          for t in PrecisionCoreTest DualTargetCoreTest V063BalancedCalibrationTest IntegratedOperationalTest SourceOrderTrackerTest ManualEchoReconcilerTest ReadingPipelineControllerTest HistoryQualityGateTest HistoryAgreementTest V076FastTrackPolicyTest V076RadarBackstageTest V077ConsensusSpatialTest V077ConsensusPolicyTest V077CadenceTest V077SaturationTest V077RadarExplainabilityTest V078TerminalConsensusTest V078TerminalPolicyTest V078TerminalValidityTest V0711IncrementalPipelineTest V0712PatternEchoTest; do
+            java -cp /tmp/aurum-host-tests "$t"
+          done
+
+      - name: Build signed debug update
+        shell: bash
+        run: |
+          set -euxo pipefail
+          cd "$ROOT"
+          ./gradlew --no-daemon --stacktrace clean assembleDebug
+
+      - name: Audit package, continuity signature and source package
+        shell: bash
+        run: |
+          set -euxo pipefail
+          APK="$(find "$ROOT" -type f -path '*/build/outputs/apk/debug/*.apk' | head -1)"
+          test -n "$APK"
+          mkdir -p artifact
+          cp "$APK" artifact/Aurum-AI-37-v0.7.12-Pattern-Echo-STABLE.apk
+          BT="$ANDROID_HOME/build-tools/35.0.0"
+          "$BT/aapt2" dump badging artifact/Aurum-AI-37-v0.7.12-Pattern-Echo-STABLE.apk | tee artifact/BADGING.txt
+          grep -q "package: name='com.xspaceart.aurumai37.integratedlab.debug' versionCode='13' versionName='0.7.12-pattern-echo-debug'" artifact/BADGING.txt
+          grep -q "launchable-activity: name='com.xspaceart.radar30.StandaloneActivity'" artifact/BADGING.txt
+          "$BT/apksigner" verify --verbose --print-certs artifact/Aurum-AI-37-v0.7.12-Pattern-Echo-STABLE.apk | tee artifact/SIGNATURE.txt
+          grep -qi '663a96b89181b13c759512229e465ebc895136545f36d1cbd29f7d7e1ad561c4' artifact/SIGNATURE.txt
+          "$BT/zipalign" -c -P 16 4 artifact/Aurum-AI-37-v0.7.12-Pattern-Echo-STABLE.apk
+          unzip -t artifact/Aurum-AI-37-v0.7.12-Pattern-Echo-STABLE.apk >/dev/null
+          sha256sum artifact/Aurum-AI-37-v0.7.12-Pattern-Echo-STABLE.apk | tee artifact/SHA256SUMS.txt
+          (cd "$ROOT" && zip -qr "$GITHUB_WORKSPACE/artifact/Aurum-AI-37-v0.7.12-PATTERN-ECHO-GITHUB-BUILD.zip" . \
+            -x 'app/build/*' '.gradle/*' '**/.DS_Store')
+          printf 'IMPLEMENTED=PASS\nBASE=V0711_PERFORMANCE_INCREMENTAL\nSIGNAL_BRAIN_V078=PRESERVED\nSIGNAL_LOGIC_CHANGED=NO\nCORE_HASHES_UNCHANGED=PASS\nPATTERN_ECHO=AUXILIARY_READ_ONLY\nEXACT_ECHO=PASS\nTERMINAL_ECHO=PASS\nWHEEL_NEIGHBOR_ECHO=PASS\nSTRUCTURAL_ECHO=PASS\nFUTURE_LEAKAGE_GUARD=PASS\nSECOND_LAUNCHER_MODE=PASS\nHOST_TESTS=PASS\nCOMPILED=PASS\nPACKAGE=PASS\nVERSION_ORDER=PASS\nSIGNATURE=PASS\nALIGNMENT=PASS\nPHYSICAL_S25FE=PENDING\n' | tee artifact/BUILD_STATUS.txt
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Aurum-AI-37-v0.7.12-Pattern-Echo
+          path: artifact/
+          if-no-files-found: error
+          retention-days: 7
