@@ -10,6 +10,7 @@ Atualizado em: 2026-09-05 (UTC)
 - Implementação publicada: commit `fb9546aa0693d4b28cfa974227072623f37f2787`.
 - Workflow aprovado: GitHub Actions `33962958803`.
 - Artefato: `Aurum-AI-37-v0.8.0-Aurum-Lock-Fast-Signal` (ID `9968538195`).
+- Pull Request aberto e revisável: `#1`.
 - APK: `Aurum-AI-37-v0.8.0-Aurum-Lock-Fast-Signal.apk`.
 - Package: `com.xspaceart.aurumai37.integratedlab.debug`.
 - Version code: `14`.
