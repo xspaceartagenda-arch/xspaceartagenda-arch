@@ -6,8 +6,9 @@ Atualizado em: 2026-09-06 (UTC)
 
 - Branch local/remota: `feature/aurum-premium-ui-v1`.
 - Base validada preservada: Aurum Lock v0.8.0.
-- Versão em desenvolvimento: `versionCode 15`, `0.8.1-premium-ui`.
+- Versão: `versionCode 15`, `0.8.1-premium-ui`.
 - Motor de decisão, thresholds, Data Quality Gate e validade do sinal não foram alterados.
+- Commit da implementação Premium UI: `a746345f953310ef2e2d9e969e5adaedb9646693`.
 
 ## Concluído neste checkpoint
 
@@ -24,24 +25,40 @@ Atualizado em: 2026-09-06 (UTC)
 - Hit, expiração, invalidação e ausência de sinal removem a bolha automaticamente.
 - Dados de UI persistidos de forma compacta; polling não cria pontos falsos no gráfico.
 
-## Validação executada
+## Validação final no GitHub Actions
 
-- `git diff --check`: aprovado.
-- Regressão host: 21 testes herdados + 3 testes Aurum Lock = 24 aprovados.
-- `AurumLockCoreTest`: aprovado após incluir determinismo das forças diagnósticas.
-- Compilação direta de todas as fontes Java Android contra SDK 35: aprovada.
-- Performance host do motor: aprovada; não representa benchmark físico.
+- Workflow: `Build Aurum v0.8.1 Premium UI`.
+- Run: `34006871226` — `SUCCESS`.
+- Regressão host completa: 24/24 testes aprovados.
+- `AURUM_PREMIUM_UI_STATIC=PASS`.
+- `AURUM_LOCK_CORE=PASS`.
+- `AURUM_LOCK_BRIDGE=PASS`.
+- `AURUM_LOCK_HOST_PERF=PASS`.
+- Build Gradle Android: `BUILD SUCCESSFUL`.
+- APK auditado com package, launcher único, assinatura e alinhamento aprovados.
+- Compatibilidade de atualização: `PASS`.
+- Signal Brain preservado: `PASS`.
+- Premium UI: `PASS`.
+- Mini Bubble: `PASS`.
+- Tendências reais de Q/Readiness: `PASS`.
+
+## Artefato gerado
+
+- Artifact ID: `9981250188`.
+- Artifact: `Aurum-AI-37-v0.8.1-Premium-UI`.
+- APK: `Aurum-AI-37-v0.8.1-Premium-UI.apk`.
+- APK SHA-256: `fcc84b4d1d658a2912e1a7abce6f516e3d91c8946ddec6e30c388605fb33880f`.
+- Artifact ZIP SHA-256: `fc78ef31e8ed96d9172eb92c4a3f539bffb8b120a7d77bc9010c74fad9b4ec14`.
 
 ## Próximas ações
 
-1. Rodar validação final de regressão e compilação após revisão do diff.
-2. Gerar overlay/workflow da v0.8.1.
-3. Executar build Android completo no GitHub Actions.
-4. Auditar APK, publicar commit/branch e abrir PR.
-5. Instalar e validar visualmente no Samsung S25 FE.
+1. Abrir PR de `feature/aurum-premium-ui-v1` para `main` sem fazer merge automático.
+2. Instalar o APK da v0.8.1 no Samsung S25 FE.
+3. Validar visualmente a interface, WebView, leitura, bolha flutuante e fluxo real no aparelho.
+4. Somente após o teste físico, decidir merge/liberação final.
 
-`ANDROID_GRADLE_BUILD=PENDING`
+`ANDROID_GRADLE_BUILD=PASS`
 
-`APK_V081=PENDING`
+`APK_V081=PASS`
 
 `PHYSICAL_S25FE=PENDING`
