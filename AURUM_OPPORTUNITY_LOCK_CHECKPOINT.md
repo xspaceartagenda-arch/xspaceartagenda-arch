@@ -1,5 +1,7 @@
 # Aurum AI 37 — Opportunity Lock v0.8.2
 
+Atualizado em: 2026-09-06
+
 ## Motivo
 
 Teste físico da v0.8.1 no Samsung S25 FE mostrou radar útil e confluências visíveis, porém cadência prática de sinal próxima de zero em sessões longas. O problema foi isolado na política de publicação do Aurum Lock, não no radar.
@@ -29,11 +31,50 @@ Mais oportunidades não significa forçar entradas. O v0.8.2 reduz o gargalo art
 - v0.8.2 está isolada em `feature/aurum-opportunity-lock-v082`.
 - Teste físico continua obrigatório antes de merge final.
 
-## Validação local executada
+## Validação final
 
-- `V082_OPPORTUNITY_LOCK_STATIC=PASS`.
-- `AURUM_LOCK_CORE=PASS`.
-- `AURUM_LOCK_BRIDGE=PASS`.
-- `AURUM_LOCK_HOST_PERF=PASS`.
-- Regressões v0.7.6/v0.7.7/v0.7.8/v0.7.11/v0.7.12 executadas e aprovadas no host.
-- Build Android completo delegado ao GitHub Actions por indisponibilidade de rede no container local.
+GitHub Actions workflow: `Build Aurum v0.8.2 Opportunity Lock`
+
+Run: `34023021531` — SUCCESS
+Commit testado: `bbf94a3de0835081d8b18ee56cb8543103aba012`
+
+- `V082_OPPORTUNITY_LOCK_STATIC=PASS`
+- `RADAR_ENGINE=PRESERVED`
+- `MULTI_CONFLUENCE_GATE=PASS`
+- `NO_TIME_BASED_SIGNAL_QUOTA=PASS`
+- Regressão host completa: 24/24 PASS
+- `AURUM_LOCK_CORE=PASS`
+- `AURUM_LOCK_BRIDGE=PASS`
+- `AURUM_LOCK_HOST_PERF=PASS`
+- Gradle Android: `BUILD SUCCESSFUL`
+- Premium UI preservada
+- Mini Bubble preservada
+- Safe-area superior: PASS
+- Launcher único: PASS
+- Package auditado: PASS
+- Assinatura: PASS
+- Compatibilidade de atualização: PASS
+- Zipalign: PASS
+
+## APK
+
+Artifact ID: `9986160416`
+Artifact: `Aurum-AI-37-v0.8.2-Opportunity-Lock`
+APK: `Aurum-AI-37-v0.8.2-Opportunity-Lock.apk`
+VersionCode: `16`
+VersionName: `0.8.2-opportunity-lock-debug`
+APK SHA-256: `4e965d76338cfc33475301cf3fbded272132e7ccc228766fbbb0b6f4c9056e2e`
+Artifact ZIP SHA-256: `06ccd7551055afab1eff89c8c8728089dfc08cf70716a309b9e6e167642737c3`
+
+## Próximo passo exato
+
+1. Instalar a v0.8.2 no Samsung S25 FE sobre a versão atual.
+2. Confirmar abertura, OCR, atualização do radar, modo flutuante e Mini Bubble.
+3. Fazer sessão real e observar principalmente a cadência dos sinais, motivos de bloqueio e qualidade das oportunidades liberadas.
+4. Não fazer merge final antes do teste físico.
+
+`V082_BUILD=PASS`
+
+`APK_V082=PASS`
+
+`PHYSICAL_S25FE=PENDING`
