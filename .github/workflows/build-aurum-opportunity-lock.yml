@@ -5,7 +5,7 @@ on:
   push:
     branches: [ feature/aurum-opportunity-lock-v082 ]
     paths:
-      - 'Aurum-AI-37-v0.8.2-OPPORTUNITY-LOCK-OVERLAY.zip'
+      - 'Aurum-v0.8.2-Opportunity-Lock.patch'
       - '.github/workflows/build-aurum-opportunity-lock.yml'
 
 permissions:
@@ -65,14 +65,12 @@ jobs:
           find app/src/main/java/com/xspaceart/radar30/core -type f -name '*.java' -print0 | sort -z | xargs -0 sha256sum > /tmp/core-before-v082.sha256
           sha256sum keystore/aurum-integrated.jks > /tmp/keystore-before-v082.sha256
 
-      - name: Apply Opportunity Lock v0.8.2 overlay
+      - name: Apply Opportunity Lock v0.8.2 patch
         shell: bash
         run: |
           set -euxo pipefail
-          mkdir -p /tmp/v082
-          unzip -q "$GITHUB_WORKSPACE/Aurum-AI-37-v0.8.2-OPPORTUNITY-LOCK-OVERLAY.zip" -d /tmp/v082
-          cp -a /tmp/v082/aurum-opportunity-lock-overlay/. "$ROOT"/
           cd "$ROOT"
+          patch -p1 < "$GITHUB_WORKSPACE/Aurum-v0.8.2-Opportunity-Lock.patch"
           python3 tools/v082_opportunity_lock_validation.py
           find app/src/main/java/com/xspaceart/radar30/core -type f -name '*.java' -print0 | sort -z | xargs -0 sha256sum > /tmp/core-after-v082.sha256
           diff -u /tmp/core-before-v082.sha256 /tmp/core-after-v082.sha256
