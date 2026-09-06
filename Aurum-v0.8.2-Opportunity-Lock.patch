@@ -42,6 +42,7 @@ index f085480..7f4e36c 100644
 +        });
          scroll.addView(root, new ScrollView.LayoutParams(
                  ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+ 
 @@ -180,7 +190,7 @@ public final class StandaloneActivity extends Activity {
  
          LinearLayout versionRow = new LinearLayout(this);
@@ -52,7 +53,7 @@ index f085480..7f4e36c 100644
          versionRow.addView(version);
          versionRow.addView(engine, Ui.margins(-2, -2, this, 7, 0, 0, 0));
 diff --git a/app/src/main/java/com/xspaceart/radar30/integrated/IntegratedActivity.java b/app/src/main/java/com/xspaceart/radar30/integrated/IntegratedActivity.java
-index 265ab82..ca362b9 100644
+index d7b5a73..24d9bd6 100644
 --- a/app/src/main/java/com/xspaceart/radar30/integrated/IntegratedActivity.java
 +++ b/app/src/main/java/com/xspaceart/radar30/integrated/IntegratedActivity.java
 @@ -17,6 +17,7 @@ import android.os.Looper;
@@ -77,10 +78,10 @@ index 265ab82..ca362b9 100644
          LinearLayout top = new LinearLayout(this);
          top.setOrientation(LinearLayout.HORIZONTAL);
 diff --git a/app/src/main/java/com/xspaceart/radar30/lock/AurumLockConfig.java b/app/src/main/java/com/xspaceart/radar30/lock/AurumLockConfig.java
-index b2c5f5f..db7b9f8 100644
+index 137d027..3c29c84 100644
 --- a/app/src/main/java/com/xspaceart/radar30/lock/AurumLockConfig.java
 +++ b/app/src/main/java/com/xspaceart/radar30/lock/AurumLockConfig.java
-@@ -8,9 +8,9 @@ package com.xspaceart.radar30.lock;
+@@ -7,9 +7,9 @@ package com.xspaceart.radar30.lock;
   * maturidade operacional; nunca representam probabilidade de vitória.
   */
  public final class AurumLockConfig {
@@ -92,7 +93,7 @@ index b2c5f5f..db7b9f8 100644
  
      public final int historyCapacity;
      public final int minimumHistory;
-@@ -72,7 +72,7 @@ public final class AurumLockConfig {
+@@ -77,7 +77,7 @@ public final class AurumLockConfig {
      public static AurumLockConfig defaults() {
          return new AurumLockConfig(
                  500, 12,
@@ -102,10 +103,10 @@ index b2c5f5f..db7b9f8 100644
                  180, 58,
                  0.34, 0.22, 0.29, 0.15);
 diff --git a/app/src/main/java/com/xspaceart/radar30/lock/AurumLockFormatter.java b/app/src/main/java/com/xspaceart/radar30/lock/AurumLockFormatter.java
-index fd13868..2045e31 100644
+index ea94ed2..8e156e8 100644
 --- a/app/src/main/java/com/xspaceart/radar30/lock/AurumLockFormatter.java
 +++ b/app/src/main/java/com/xspaceart/radar30/lock/AurumLockFormatter.java
-@@ -33,9 +33,11 @@ public final class AurumLockFormatter {
+@@ -33,8 +33,10 @@ public final class AurumLockFormatter {
  
      public static String gate(AurumLockSnapshot s) {
          if (s == null) return "Gate: aguardando veredito.";
@@ -117,10 +118,10 @@ index fd13868..2045e31 100644
                  + " • Q mede qualidade, não chance de vitória.";
      }
 diff --git a/app/src/main/java/com/xspaceart/radar30/lock/AurumLockPolicy.java b/app/src/main/java/com/xspaceart/radar30/lock/AurumLockPolicy.java
-index 2ba3712..0f63fb9 100644
+index a11921c..f0ba423 100644
 --- a/app/src/main/java/com/xspaceart/radar30/lock/AurumLockPolicy.java
 +++ b/app/src/main/java/com/xspaceart/radar30/lock/AurumLockPolicy.java
-@@ -1,6 +1,13 @@
+@@ -1,6 +1,12 @@
  package com.xspaceart.radar30.lock;
  
 -/** Decisão final simples: gate + audit + Q + Readiness + ausência de veto. */
@@ -134,7 +135,7 @@ index 2ba3712..0f63fb9 100644
  public final class AurumLockPolicy {
      private AurumLockPolicy() {}
  
-@@ -30,10 +37,33 @@ public final class AurumLockPolicy {
+@@ -27,14 +33,35 @@ public final class AurumLockPolicy {
          }
  
          boolean diverse = input.independentFamilies >= config.minimumIndependentFamilies;
@@ -147,9 +148,9 @@ index 2ba3712..0f63fb9 100644
 +                && input.windowConsistency >= 45
 +                && input.contradiction <= 55;
 +
-+        // Oportunidade visível: exige TODAS as quatro famílias independentes.
++        // Oportunidade visével: exige TODAS as  quatro famílias independentes.
 +        // É a ponte entre um radar claramente convergente e o Lock tradicional.
-+        // Não usa relógio/cadência como gatilho e não publica em dispersão.
++        // Não usa relógio/cadãncia como gatrilho e não publica em dispersão.
 +        boolean visibleOpportunity = input.fastAuditPassed
 +                && input.independentFamilies >= 4
 +                && input.q >= Math.max(58, config.preLockQ)
@@ -175,11 +176,11 @@ index 2ba3712..0f63fb9 100644
              return out.readinessState(AurumLockSnapshot.ReadinessState.LOCKED)
                      .lockMode(AurumLockSnapshot.LockMode.INSTANT_LOCK).build();
          }
-@@ -48,8 +78,34 @@ public final class AurumLockPolicy {
+@@ -48,8 +75,34 @@ public final class AurumLockPolicy {
          }
  
          if (armed) return out.readinessState(AurumLockSnapshot.ReadinessState.ARMED).build();
--        if (input.q >= config.preLockQ && input.readiness >= config.preLockQ) {
+-        if (input.q >= config.preLockQ  && input.readiness >= config.preLockQ) {
 +        if (input.q >= config.preLockQ
 +                && input.readiness >= Math.max(48, config.preLockQ - 4)
 +                && input.independentFamilies >= 2
@@ -212,7 +213,7 @@ index 2ba3712..0f63fb9 100644
 +    }
  }
 diff --git a/tools/AurumLockCoreTest.java b/tools/AurumLockCoreTest.java
-index eb8f157..115b2fe 100644
+index fac33f4..53fdf98 100644
 --- a/tools/AurumLockCoreTest.java
 +++ b/tools/AurumLockCoreTest.java
 @@ -19,6 +19,7 @@ public final class AurumLockCoreTest {
@@ -223,10 +224,10 @@ index eb8f157..115b2fe 100644
          regimeDetectsDecayAndSaturation();
          patternEchoOrderingAndSingleVote();
          sessionLockAndDynamicValidity();
-@@ -126,6 +127,51 @@ public final class AurumLockCoreTest {
-                         == AurumLockSnapshot.ReadinessState.INVALIDATED,
+@@ -130,6 +131,51 @@ public final class AurumLockCoreTest {
                  "data-quality failure is a hard gate, not a Q penalty");
      }
+ 
 +
 +    private static void opportunityLockRequiresRealConfluence() {
 +        AurumLockConfig config = AurumLockConfig.defaults();
