@@ -5,7 +5,7 @@ on:
   push:
     branches: [ feature/aurum-opportunity-lock-v082 ]
     paths:
-      - 'Aurum-v0.8.2-Opportunity-Lock.patch'
+      - 'v082-src/**'
       - '.github/workflows/build-aurum-opportunity-lock.yml'
 
 permissions:
@@ -65,12 +65,12 @@ jobs:
           find app/src/main/java/com/xspaceart/radar30/core -type f -name '*.java' -print0 | sort -z | xargs -0 sha256sum > /tmp/core-before-v082.sha256
           sha256sum keystore/aurum-integrated.jks > /tmp/keystore-before-v082.sha256
 
-      - name: Apply Opportunity Lock v0.8.2 patch
+      - name: Apply Opportunity Lock v0.8.2
         shell: bash
         run: |
           set -euxo pipefail
+          python3 "$GITHUB_WORKSPACE/v082-src/tools/apply_v082_project.py" "$ROOT"
           cd "$ROOT"
-          patch -p1 < "$GITHUB_WORKSPACE/Aurum-v0.8.2-Opportunity-Lock.patch"
           python3 tools/v082_opportunity_lock_validation.py
           find app/src/main/java/com/xspaceart/radar30/core -type f -name '*.java' -print0 | sort -z | xargs -0 sha256sum > /tmp/core-after-v082.sha256
           diff -u /tmp/core-before-v082.sha256 /tmp/core-after-v082.sha256
@@ -155,7 +155,7 @@ jobs:
             'FULL_HOST_REGRESSION=PASS' \
             'PREMIUM_UI=PRESERVED' \
             'MINI_BUBBLE=PRESERVED' \
-            'SAFE_AREA_FIX=PASS' \
+            'TOP_SAFE_PADDING=PASS' \
             'SINGLE_LAUNCHER=PASS' \
             'PACKAGE=PASS' \
             'SIGNATURE=PASS' \
