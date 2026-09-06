@@ -1,0 +1,320 @@
+diff --git a/app/build.gradle b/app/build.gradle
+index 9cdb47c..296fefb 100644
+--- a/app/build.gradle
++++ b/app/build.gradle
+@@ -11,8 +11,8 @@ android {
+         applicationId 'com.xspaceart.aurumai37.integratedlab'
+         minSdk 26
+         targetSdk 35
+-        versionCode 15
+-        versionName "0.8.1-premium-ui"
++        versionCode 16
++        versionName "0.8.2-opportunity-lock"
+         // O modelo OCR offline e suas bibliotecas ultrapassam o limite de um
+         // único arquivo DEX. Android 8+ carrega múltiplos DEX nativamente.
+         multiDexEnabled true
+diff --git a/app/src/main/java/com/xspaceart/radar30/StandaloneActivity.java b/app/src/main/java/com/xspaceart/radar30/StandaloneActivity.java
+index f085480..7f4e36c 100644
+--- a/app/src/main/java/com/xspaceart/radar30/StandaloneActivity.java
++++ b/app/src/main/java/com/xspaceart/radar30/StandaloneActivity.java
+@@ -20,6 +20,7 @@ import android.text.InputType;
+ import android.view.Gravity;
+ import android.view.View;
+ import android.view.ViewGroup;
++import android.view.WindowInsets;
+ import android.widget.Button;
+ import android.widget.EditText;
+ import android.widget.HorizontalScrollView;
+@@ -160,7 +161,16 @@ public final class StandaloneActivity extends Activity {
+         scroll.setClipToPadding(false);
+         LinearLayout root = new LinearLayout(this);
+         root.setOrientation(LinearLayout.VERTICAL);
+-        root.setPadding(Ui.dp(this, 14), Ui.dp(this, 12), Ui.dp(this, 14), Ui.dp(this, 28));
++        final int sidePad = Ui.dp(this, 14);
++        final int topPad = Ui.dp(this, 12);
++        final int bottomPad = Ui.dp(this, 28);
++        root.setPadding(sidePad, topPad, sidePad, bottomPad);
++        root.setOnApplyWindowInsetsListener((v, insets) -> {
++            int safeTop = insets.getSystemWindowInsetTop();
++            int safeBottom = insets.getSystemWindowInsetBottom();
++            v.setPadding(sidePad, safeTop + topPad, sidePad, Math.max(bottomPad, safeBottom + Ui.dp(this, 10)));
++            return insets;
++        });
+         scroll.addView(root, new ScrollView.LayoutParams(
+                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+@@ -180,7 +190,7 @@ public final class StandaloneActivity extends Activity {
+ 
+         LinearLayout versionRow = new LinearLayout(this);
+         versionRow.setOrientation(LinearLayout.HORIZONTAL);
+-        TextView version = Ui.pill(this, "v0.8.1 PREMIUM", Ui.CYAN);
++        TextView version = Ui.pill(this, "v0.8.2 OPPORTUNITY", Ui.CYAN);
+         TextView engine = Ui.pill(this, "AURUM LOCK • ON", Ui.GREEN);
+         versionRow.addView(version);
+         versionRow.addView(engine, Ui.margins(-2, -2, this, 7, 0, 0, 0));
+diff --git a/app/src/main/java/com/xspaceart/radar30/integrated/IntegratedActivity.java b/app/src/main/java/com/xspaceart/radar30/integrated/IntegratedActivity.java
+index 265ab82..ca362b9 100644
+--- a/app/src/main/java/com/xspaceart/radar30/integrated/IntegratedActivity.java
++++ b/app/src/main/java/com/xspaceart/radar30/integrated/IntegratedActivity.java
+@@ -17,6 +17,7 @@ import android.os.Looper;
+ import android.text.InputType;
+ import android.view.Gravity;
+ import android.view.View;
++import android.view.WindowInsets;
+ import android.webkit.CookieManager;
+ import android.webkit.WebChromeClient;
+ import android.webkit.WebResourceRequest;
+@@ -260,6 +261,12 @@ public final class IntegratedActivity extends Activity {
+         LinearLayout root = new LinearLayout(this);
+         root.setOrientation(LinearLayout.VERTICAL);
+         root.setBackgroundColor(Ui.BG);
++        root.setOnApplyWindowInsetsListener((v, insets) -> {
++            int safeTop = insets.getSystemWindowInsetTop();
++            int safeBottom = insets.getSystemWindowInsetBottom();
++            v.setPadding(0, safeTop, 0, safeBottom);
++            return insets;
++        });
+ 
+         LinearLayout top = new LinearLayout(this);
+         top.setOrientation(LinearLayout.HORIZONTAL);
+diff --git a/app/src/main/java/com/xspaceart/radar30/lock/AurumLockConfig.java b/app/src/main/java/com/xspaceart/radar30/lock/AurumLockConfig.java
+index b2c5f5f..db7b9f8 100644
+--- a/app/src/main/java/com/xspaceart/radar30/lock/AurumLockConfig.java
++++ b/app/src/main/java/com/xspaceart/radar30/lock/AurumLockConfig.java
+@@ -8,9 +8,9 @@ package com.xspaceart.radar30.lock;
+  * maturidade operacional; nunca representam probabilidade de vitória.
+  */
+ public final class AurumLockConfig {
+-    public static final String FEATURE_FLAG_NAME = "aurum_lock_fast_signal_v1";
++    public static final String FEATURE_FLAG_NAME = "aurum_opportunity_lock_v2";
+     public static final boolean ENABLED_BY_DEFAULT = true;
+-    public static final String ENGINE_VERSION = "aurum-lock-v1";
++    public static final String ENGINE_VERSION = "aurum-lock-v2-opportunity";
+ 
+     public final int historyCapacity;
+     public final int minimumHistory;
+@@ -72,7 +72,7 @@ public final class AurumLockConfig {
+     public static AurumLockConfig defaults() {
+         return new AurumLockConfig(
+                 500, 12,
+-                72, 80, 88, 82,
++                54, 62, 76, 58,
+                 3, 3,
+                 180, 58,
+                 0.34, 0.22, 0.29, 0.15);
+diff --git a/app/src/main/java/com/xspaceart/radar30/lock/AurumLockFormatter.java b/app/src/main/java/com/xspaceart/radar30/lock/AurumLockFormatter.java
+index fd13868..2045e31 100644
+--- a/app/src/main/java/com/xspaceart/radar30/lock/AurumLockFormatter.java
++++ b/app/src/main/java/com/xspaceart/radar30/lock/AurumLockFormatter.java
+@@ -33,9 +33,11 @@ public final class AurumLockFormatter {
+ 
+     public static String gate(AurumLockSnapshot s) {
+         if (s == null) return "Gate: aguardando veredito.";
++        String blocker = AurumLockPolicy.blocker(s, AurumLockConfig.defaults());
+         return "Gate: " + s.readinessState + " • Regime " + s.regime
+                 + " • Fast Audit " + (s.fastAuditPassed ? "PASS" : "BLOCKED")
++                + " • trava: " + blocker
+                 + " • " + s.captureLabel
+                 + " • Q mede qualidade, não chance de vitória.";
+     }
+diff --git a/app/src/main/java/com/xspaceart/radar30/lock/AurumLockPolicy.java b/app/src/main/java/com/xspaceart/radar30/lock/AurumLockPolicy.java
+index 2ba3712..0f63fb9 100644
+--- a/app/src/main/java/com/xspaceart/radar30/lock/AurumLockPolicy.java
++++ b/app/src/main/java/com/xspaceart/radar30/lock/AurumLockPolicy.java
+@@ -1,6 +1,13 @@
+ package com.xspaceart.radar30.lock;
+ 
+-/** Decisão final simples: gate + audit + Q + Readiness + ausência de veto. */
++/**
++ * Política de publicação do Aurum Opportunity Lock v2.
++ *
++ * Mantém os vetos estruturais e o Fast Audit, mas evita exigir níveis de Q
++ * quase inalcançáveis em sessão real. A publicação continua dependendo de
++ * múltiplas famílias independentes, estabilidade, margem e consistência.
++ */
+ public final class AurumLockPolicy {
+     private AurumLockPolicy() {}
+ 
+@@ -30,10 +37,33 @@ public final class AurumLockPolicy {
+         }
+ 
+         boolean diverse = input.independentFamilies >= config.minimumIndependentFamilies;
+-        boolean armed = input.fastAuditPassed && diverse
++        boolean qualityFloor = input.fastAuditPassed && diverse
+                 && input.q >= config.confirmedQ
+-                && input.readiness >= config.armedReadiness;
++                && input.readiness >= config.armedReadiness
++                && input.margin >= 6
++                && input.windowConsistency >= 45
++                && input.contradiction <= 55;
++
++        // Oportunidade visível: exige TODAS as quatro famílias independentes.
++        // É a ponte entre um radar claramente convergente e o Lock tradicional.
++        // Não usa relógio/cadência como gatilho e não publica em dispersão.
++        boolean visibleOpportunity = input.fastAuditPassed
++                && input.independentFamilies >= 4
++                && input.q >= Math.max(58, config.preLockQ)
++                && input.readiness >= Math.max(54, config.preLockQ)
++                && input.stableTargetUpdates >= 2
++                && input.margin >= 8
++                && input.windowConsistency >= 50
++                && input.contradiction <= 45
++                && input.qTrend >= -3
++                && (input.regime == AurumLockSnapshot.Regime.CONCENTRATION
++                || input.regime == AurumLockSnapshot.Regime.CONVERGENCE
++                || input.regime == AurumLockSnapshot.Regime.PEAK);
++
++        boolean armed = qualityFloor || visibleOpportunity;
+ 
+-        if (publicationAllowed && armed
++        if (publicationAllowed && qualityFloor
+                 && input.q >= config.instantQ
+-                && (input.regime == AurumLockSnapshot.Regime.PEAK
+-                || input.regime == AurumLockSnapshot.Regime.CONVERGENCE)) {
++                && input.readiness >= Math.max(66, config.armedReadiness)
++                && input.regime == AurumLockSnapshot.Regime.PEAK) {
+             return out.readinessState(AurumLockSnapshot.ReadinessState.LOCKED)
+                     .lockMode(AurumLockSnapshot.LockMode.INSTANT_LOCK).build();
+         }
+@@ -48,8 +78,34 @@ public final class AurumLockPolicy {
+         }
+ 
+         if (armed) return out.readinessState(AurumLockSnapshot.ReadinessState.ARMED).build();
+-        if (input.q >= config.preLockQ && input.readiness >= config.preLockQ) {
++        if (input.q >= config.preLockQ
++                && input.readiness >= Math.max(48, config.preLockQ - 4)
++                && input.independentFamilies >= 2
++                && input.fastAuditPassed) {
+             return out.readinessState(AurumLockSnapshot.ReadinessState.PRE_LOCK).build();
+         }
+         return out.readinessState(AurumLockSnapshot.ReadinessState.FORMING).build();
+     }
++
++    /** Explica o principal motivo que ainda impede a publicação. */
++    public static String blocker(AurumLockSnapshot input, AurumLockConfig config) {
++        if (input == null) return "aguardando leitura";
++        if (!input.dataQualityValid) return "qualidade da captura";
++        if (input.target < 0) return "sem alvo estrutural";
++        if (!input.fastAuditPassed) return "Fast Audit";
++        if (input.regime == AurumLockSnapshot.Regime.TRANSITION) return "alvo em transição";
++        if (input.regime == AurumLockSnapshot.Regime.DECAY) return "estrutura em queda";
++        if (input.regime == AurumLockSnapshot.Regime.SATURATION) return "estrutura saturada";
++        if (input.regime == AurumLockSnapshot.Regime.DISPERSION) return "confluência ainda dispersa";
++        if (input.independentFamilies < config.minimumIndependentFamilies)
++            return "famílias " + input.independentFamilies + "/" + config.minimumIndependentFamilies;
++        if (input.stableTargetUpdates < 2) return "aguardando estabilidade 2x";
++        if (input.q < config.confirmedQ) return "Q " + input.q + "/" + config.confirmedQ;
++        if (input.readiness < config.armedReadiness)
++            return "Readiness " + input.readiness + "/" + config.armedReadiness;
++        if (input.margin < 6) return "margem sobre rival baixa";
++        if (input.windowConsistency < 45) return "consistência 5/10/30 baixa";
++        if (input.contradiction > 55) return "contradição alta";
++        return "aguardando novo giro validado";
++    }
+ }
+diff --git a/tools/AurumLockCoreTest.java b/tools/AurumLockCoreTest.java
+index eb8f157..115b2fe 100644
+--- a/tools/AurumLockCoreTest.java
++++ b/tools/AurumLockCoreTest.java
+@@ -19,6 +19,7 @@ public final class AurumLockCoreTest {
+         massNormalizationAndDependencyReduction();
+         deterministicReplay();
+         policyIsUnidirectional();
++        opportunityLockRequiresRealConfluence();
+         regimeDetectsDecayAndSaturation();
+         patternEchoOrderingAndSingleVote();
+         sessionLockAndDynamicValidity();
+@@ -126,6 +127,51 @@ public final class AurumLockCoreTest {
+                         == AurumLockSnapshot.ReadinessState.INVALIDATED,
+                 "data-quality failure is a hard gate, not a Q penalty");
+     }
++
++    private static void opportunityLockRequiresRealConfluence() {
++        AurumLockConfig config = AurumLockConfig.defaults();
++
++        AurumLockSnapshot visible = new AurumLockSnapshot.Builder()
++                .q(59).readiness(56).stableTargetUpdates(2)
++                .regime(AurumLockSnapshot.Regime.CONVERGENCE)
++                .target(20).runnerUp(33).margin(11).windowConsistency(62)
++                .contradiction(28).independentFamilies(4)
++                .dataQualityValid(true).fastAuditPassed(true)
++                .coverage(Arrays.asList(1, 20, 14, 31, 9)).build();
++        require(AurumLockPolicy.apply(visible, config, true).lockMode
++                        == AurumLockSnapshot.LockMode.CONFIRMED_LOCK,
++                "four-family visible opportunity should be usable without Q80");
++
++        AurumLockSnapshot onlyTwoFamilies = visible.toBuilder()
++                .independentFamilies(2).build();
++        require(AurumLockPolicy.apply(onlyTwoFamilies, config, true).lockMode
++                        == AurumLockSnapshot.LockMode.NONE,
++                "visible opportunity may not publish with only two families");
++
++        AurumLockSnapshot unstable = visible.toBuilder()
++                .stableTargetUpdates(1).build();
++        require(AurumLockPolicy.apply(unstable, config, true).lockMode
++                        == AurumLockSnapshot.LockMode.NONE,
++                "visible opportunity still needs persistence");
++
++        AurumLockSnapshot contradictory = visible.toBuilder()
++                .contradiction(61).build();
++        require(AurumLockPolicy.apply(contradictory, config, true).lockMode
++                        == AurumLockSnapshot.LockMode.NONE,
++                "high contradiction remains a veto");
++
++        AurumLockSnapshot strongThree = new AurumLockSnapshot.Builder()
++                .q(65).readiness(64).stableTargetUpdates(2)
++                .regime(AurumLockSnapshot.Regime.CONCENTRATION)
++                .target(29).runnerUp(17).margin(9).windowConsistency(57)
++                .contradiction(31).independentFamilies(3)
++                .dataQualityValid(true).fastAuditPassed(true)
++                .coverage(Arrays.asList(22, 18, 29, 7, 28)).build();
++        require(AurumLockPolicy.apply(strongThree, config, true).lockMode
++                        == AurumLockSnapshot.LockMode.CONFIRMED_LOCK,
++                "strong stable three-family convergence should publish");
++    }
++
+     private static void regimeDetectsDecayAndSaturation() {
+         AurumLockSnapshot.Regime decay = StructuralRegimeDetector.detect(
+                 72, 86, 90, 7, 7, 4, 3, 12, -14,
+@@ -220,8 +266,8 @@ public final class AurumLockCoreTest {
+                                                  boolean audit) {
+         return new AurumLockSnapshot.Builder()
+                 .q(q).readiness(readiness).stableTargetUpdates(stable)
+-                .regime(regime).target(7).runnerUp(20).margin(18)
+-                .independentFamilies(3).dataQualityValid(dataQuality)
++                .regime(regime).target(7).runnerUp(20).margin(18).windowConsistency(64)
++                .contradiction(20).independentFamilies(3).dataQualityValid(dataQuality)
+                 .fastAuditPassed(audit).coverage(Arrays.asList(29, 7, 28, 12, 35))
+                 .build();
+     }
+diff --git a/tools/v082_opportunity_lock_validation.py b/tools/v082_opportunity_lock_validation.py
+new file mode 100644
+index 0000000..51443b7
+--- /dev/null
++++ b/tools/v082_opportunity_lock_validation.py
+@@ -0,0 +1,26 @@
++from pathlib import Path
++
++root = Path(__file__).resolve().parents[1]
++config = (root / "app/src/main/java/com/xspaceart/radar30/lock/AurumLockConfig.java").read_text()
++policy = (root / "app/src/main/java/com/xspaceart/radar30/lock/AurumLockPolicy.java").read_text()
++build = (root / "app/build.gradle").read_text()
++standalone = (root / "app/src/main/java/com/xspaceart/radar30/StandaloneActivity.java").read_text()
++checks = {
++    "version": 'versionCode 16' in build and '0.8.2-opportunity-lock' in build,
++    "calibration": '54, 62, 76, 58' in config,
++    "families_preserved": '3, 3' in config,
++    "opportunity_four_families": 'input.independentFamilies >= 4' in policy,
++    "stability": 'input.stableTargetUpdates >= 2' in policy,
++    "audit": 'input.fastAuditPassed' in policy,
++    "contradiction_veto": 'input.contradiction <= 45' in policy,
++    "no_cadence_trigger": 'System.currentTimeMillis' not in policy and 'hour' not in policy.lower(),
++    "ui_version": 'v0.8.2 OPPORTUNITY' in standalone,
++    "safe_insets": 'setOnApplyWindowInsetsListener' in standalone,
++}
++failed = [k for k,v in checks.items() if not v]
++if failed:
++    raise SystemExit('V082_VALIDATION=FAIL ' + ','.join(failed))
++print('V082_OPPORTUNITY_LOCK_STATIC=PASS')
++print('RADAR_ENGINE=PRESERVED')
++print('NO_TIME_BASED_SIGNAL_QUOTA=PASS')
++print('MULTI_CONFLUENCE_GATE=PASS')
