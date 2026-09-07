@@ -25,5 +25,29 @@ Scores CPE 0–100 são pressão relativa e nunca porcentagem de chance. Em role
 - Premium UI, Mini Bubble, assinatura e package.
 - CORE estratégico sem alterações.
 
+## Validação GitHub Actions
+- Workflow: `Build Aurum v0.8.4 CPE Pressure`
+- Run: `34171063843` — SUCCESS
+- Commit testado: `954d01a7b81bc736042d8871a23bdc85dce3aad2`
+- Artifact ID: `10035749271`
+- `CPE_MODE=SHADOW`
+- `RANK_37=PASS`
+- `MULTIWINDOW_5_10_30_60_150_500=PASS`
+- `NUMBER_TRANSITIONS=PASS`
+- `TERMINAL_TRANSITIONS=PASS`
+- `PATTERN_ECHO_FUSION=PASS`
+- `VALIDATED_ARITHMETIC=PASS`
+- `SECTOR_RANKING=PASS`
+- `TERMINAL_RANKING=PASS`
+- `LEADER_MARGIN=PASS`
+- `MAPA_PRESSAO_UI=PASS`
+- `RAIO_X_PROXIMO_GIRO=PASS`
+- `SIGNAL_POLICY_UNCHANGED=PASS`
+- `CAPTURE_INTEGRITY_PRESERVED=PASS`
+- `FULL_HOST_REGRESSION=PASS`
+- Android build, package, assinatura, atualização e zipalign: PASS
+- APK SHA-256: `d61483680e6185c15f3905bece8ac64b5f0fe262a913c5345e00e3f72479fb48`
+- Teste físico no S25 FE: PENDENTE
+
 ## Próximo critério de promoção
 Registrar CPE prospectivamente e medir Top1, Top3, setor5, cobertura, false confidence, lift e estabilidade. Somente promover ao AURUM LOCK se melhorar fora da amostra e em teste físico/prospectivo.
