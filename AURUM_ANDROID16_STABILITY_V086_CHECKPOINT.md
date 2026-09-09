@@ -9,7 +9,7 @@ Atualizado em: 2026-09-09
 - Nova versão: `versionCode 20`, `versionName 0.8.6-android16-capture-stability`
 - Algoritmos Aurum Lock, CPE, Radar, OCR e regras de sinal: **inalterados**
 - Validação estática específica: **PASS**
-- Build Android/GitHub Actions: **PENDENTE neste checkpoint**
+- Build Android/GitHub Actions: **SUCCESS**
 - Teste físico no Samsung/Android 16: **PENDENTE**
 
 ## Diagnóstico confirmado no bugreport
@@ -77,12 +77,25 @@ O relatório também preservou duas falhas de estabilidade relacionadas:
 - `V086_ANDROID16_STABILITY=PASS`
 - Aplicação limpa do patch sobre uma composição v0.8.5: **PASS**
 
-## Próximos passos exatos
+## Build validado
 
-1. Commitar e enviar a branch.
-2. Aguardar o workflow `Build Aurum v0.8.6 Android 16 Capture Stability`.
-3. Registrar run, SHA-256 e artifact neste checkpoint.
-4. Instalar por cima da v0.8.5 e testar: LIMPAR com OCR parado, PARAR, nova
+- Workflow: `Build Aurum v0.8.6 Android 16 Capture Stability`
+- Run: `34318826093` — **SUCCESS**
+- Commit testado: `d06ea455efebbda55a89eed0c199a829da42198a`
+- Artifact ID: `10091123369`
+- Artifact: `Aurum-AI-37-v0.8.6-Android16-Stability`
+- Artifact ZIP SHA-256: `345b8b5df3698e311c01dde437d556b45c6ae19193038861d06c6d9508d16b73`
+- APK: `Aurum-AI-37-v0.8.6-Android16-Stability.apk`
+- APK SHA-256: `4755752f906aded8b2556489af00e75527554a15e788590f9f5043ff3dbd9d23`
+- Package: `com.xspaceart.aurumai37.integratedlab.debug`
+- Assinatura de atualização preservada: **PASS**
+- Full host regression: **PASS**
+- Build Android, zipalign e auditoria do APK: **PASS**
+- Artifact disponível até: `2026-10-09`
+
+## Próximo passo exato
+
+1. Instalar por cima da v0.8.5 e testar: LIMPAR com OCR parado, PARAR, nova
    autorização, 10–20 giros com bolha e bloqueio/desbloqueio da tela.
 
-`V086_CHECKPOINT=CODE_READY_FOR_CI`
+`V086_CHECKPOINT=CI_PASS_PHYSICAL_PENDING`
