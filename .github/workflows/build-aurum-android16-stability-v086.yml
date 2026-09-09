@@ -1,0 +1,204 @@
+name: Build Aurum v0.8.6 Android 16 Capture Stability
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ feature/aurum-android16-stability-v086 ]
+    paths:
+      - 'v086-src/**'
+      - 'AURUM_ANDROID16_STABILITY_V086_CHECKPOINT.md'
+      - '.github/workflows/build-aurum-android16-stability-v086.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: android-actions/setup-android@v3
+
+      - name: Install Android SDK
+        run: |
+          yes | sdkmanager --licenses >/dev/null 2>&1 || true
+          sdkmanager 'platforms;android-35' 'build-tools;35.0.0'
+
+      - name: Compose validated Aurum v0.8.4
+        shell: bash
+        run: |
+          set -euxo pipefail
+          mkdir standalone
+          unzip -q Aurum-AI-37-v0.7.11-PERFORMANCE-INCREMENTAL-GITHUB-BUILD.zip -d standalone
+          WRAPPER="$(find standalone -type f -name gradlew | head -1)"
+          test -n "$WRAPPER"
+          chmod +x "$WRAPPER"
+          PROJECT_ROOT="$(realpath "$(dirname "$WRAPPER")")"
+          echo "ROOT=$PROJECT_ROOT" >> "$GITHUB_ENV"
+          cd "$PROJECT_ROOT"
+          python3 tools/v0711_static_validation.py
+
+          mkdir -p /tmp/v0712
+          unzip -q "$GITHUB_WORKSPACE/Aurum-AI-37-v0.7.12-PATTERN-ECHO-OVERLAY.zip" -d /tmp/v0712
+          ECHO_OVERLAY=/tmp/v0712/v0712-pattern-echo-overlay
+          mkdir -p app/src/main/java/com/xspaceart/radar30/echo
+          cp "$ECHO_OVERLAY"/app/src/main/java/com/xspaceart/radar30/echo/*.java app/src/main/java/com/xspaceart/radar30/echo/
+          cp "$ECHO_OVERLAY/tools/V0712PatternEchoTest.java" tools/
+          cp "$ECHO_OVERLAY/tools/v0712_static_validation.py" tools/
+          python3 "$ECHO_OVERLAY/tools/patch_v0712_project.py" "$PROJECT_ROOT"
+          python3 tools/v0712_static_validation.py
+
+          mkdir -p /tmp/aurum-lock
+          unzip -q "$GITHUB_WORKSPACE/Aurum-AI-37-v0.8.0-AURUM-LOCK-FAST-SIGNAL-OVERLAY.zip" -d /tmp/aurum-lock
+          cp -a /tmp/aurum-lock/aurum-lock-fast-signal-overlay/. "$PROJECT_ROOT"/
+          python3 tools/aurum_lock_static_validation.py
+
+          mkdir -p /tmp/aurum-ui
+          unzip -q "$GITHUB_WORKSPACE/Aurum-AI-37-v0.8.1-PREMIUM-UI-OVERLAY.zip" -d /tmp/aurum-ui
+          cp -a /tmp/aurum-ui/aurum-premium-ui-overlay/. "$PROJECT_ROOT"/
+          python3 tools/aurum_premium_ui_static_validation.py
+
+          python3 "$GITHUB_WORKSPACE/v082-src/tools/apply_v082_project.py" "$PROJECT_ROOT"
+          python3 tools/v082_opportunity_lock_validation.py
+
+          python3 "$GITHUB_WORKSPACE/v083-src/tools/apply_v083_project.py" "$PROJECT_ROOT"
+          python3 "$GITHUB_WORKSPACE/v083-src/tools/v083_capture_integrity_validation.py"
+
+          python3 "$GITHUB_WORKSPACE/v084-src/tools/apply_v084_project.py" "$PROJECT_ROOT"
+          cd "$PROJECT_ROOT"
+          python3 "$GITHUB_WORKSPACE/v084-src/tools/v084_cpe_pressure_validation.py"
+          sha256sum keystore/aurum-integrated.jks > /tmp/keystore-before-v085.sha256
+
+      - name: Compose validated Aurum v0.8.5
+        shell: bash
+        run: |
+          set -euxo pipefail
+          python3 "$GITHUB_WORKSPACE/v085-src/tools/apply_v085_project.py" "$ROOT"
+          cd "$ROOT"
+          python3 "$GITHUB_WORKSPACE/v085-src/tools/v085_capture_cpe_validation.py"
+          sha256sum keystore/aurum-integrated.jks > /tmp/keystore-after-v085.sha256
+          diff -u /tmp/keystore-before-v085.sha256 /tmp/keystore-after-v085.sha256
+          cp /tmp/keystore-after-v085.sha256 /tmp/keystore-before-v086.sha256
+
+      - name: Apply Android 16 capture stability v0.8.6
+        shell: bash
+        run: |
+          set -euxo pipefail
+          python3 "$GITHUB_WORKSPACE/v086-src/tools/apply_v086_project.py" "$ROOT"
+          python3 "$GITHUB_WORKSPACE/v086-src/tools/v086_android16_stability_validation.py" "$ROOT"
+          cd "$ROOT"
+          sha256sum keystore/aurum-integrated.jks > /tmp/keystore-after-v086.sha256
+          diff -u /tmp/keystore-before-v086.sha256 /tmp/keystore-after-v086.sha256
+
+      - name: Run complete host regression through v0.8.5
+        shell: bash
+        run: |
+          set -euxo pipefail
+          cd "$ROOT"
+          rm -rf /tmp/aurum-host-tests
+          mkdir -p /tmp/aurum-host-tests
+          javac -encoding UTF-8 -source 17 -target 17 -d /tmp/aurum-host-tests \
+            app/src/main/java/com/xspaceart/radar30/core/*.java \
+            app/src/main/java/com/xspaceart/radar30/echo/PatternEchoEngine.java \
+            app/src/main/java/com/xspaceart/radar30/cpe/*.java \
+            app/src/main/java/com/xspaceart/radar30/lock/*.java \
+            app/src/main/java/com/xspaceart/radar30/RadarBackstageFormatter.java \
+            app/src/main/java/com/xspaceart/radar30/integrated/IntegratedSignalBridge.java \
+            app/src/main/java/com/xspaceart/radar30/integrated/normalize/*.java \
+            app/src/main/java/com/xspaceart/radar30/integrated/scanner/SourceHunter.java \
+            app/src/main/java/com/xspaceart/radar30/integrated/scanner/HistoryQualityGate.java \
+            app/src/main/java/com/xspaceart/radar30/integrated/scanner/HistoryAgreement.java \
+            app/src/main/java/com/xspaceart/radar30/integrated/pipeline/ReadingPipelineController.java \
+            tools/PrecisionCoreTest.java tools/DualTargetCoreTest.java \
+            tools/V063BalancedCalibrationTest.java tools/IntegratedOperationalTest.java \
+            tools/SourceOrderTrackerTest.java tools/ManualEchoReconcilerTest.java \
+            tools/ReadingPipelineControllerTest.java tools/HistoryQualityGateTest.java \
+            tools/HistoryAgreementTest.java tools/V076FastTrackPolicyTest.java \
+            tools/V076RadarBackstageTest.java tools/V077ConsensusSpatialTest.java \
+            tools/V077ConsensusPolicyTest.java tools/V077CadenceTest.java \
+            tools/V077SaturationTest.java tools/V077RadarExplainabilityTest.java \
+            tools/V078TerminalConsensusTest.java tools/V078TerminalPolicyTest.java \
+            tools/V078TerminalValidityTest.java tools/V0711IncrementalPipelineTest.java \
+            tools/V0712PatternEchoTest.java tools/AurumLockCoreTest.java \
+            tools/AurumLockBridgeTest.java tools/AurumLockPerformanceTest.java \
+            tools/V084ConditionalPredictionTest.java \
+            tools/V085CaptureContinuityTest.java tools/V085CpeActiveFusionTest.java
+          tests=(
+            PrecisionCoreTest DualTargetCoreTest V063BalancedCalibrationTest
+            IntegratedOperationalTest SourceOrderTrackerTest ManualEchoReconcilerTest
+            ReadingPipelineControllerTest HistoryQualityGateTest HistoryAgreementTest
+            V076FastTrackPolicyTest V076RadarBackstageTest V077ConsensusSpatialTest
+            V077ConsensusPolicyTest V077CadenceTest V077SaturationTest
+            V077RadarExplainabilityTest V078TerminalConsensusTest V078TerminalPolicyTest
+            V078TerminalValidityTest V0711IncrementalPipelineTest V0712PatternEchoTest
+            AurumLockCoreTest AurumLockBridgeTest AurumLockPerformanceTest
+            V084ConditionalPredictionTest V085CaptureContinuityTest V085CpeActiveFusionTest
+          )
+          for test_class in "${tests[@]}"; do java -cp /tmp/aurum-host-tests "$test_class"; done
+
+      - name: Build signed Android update
+        shell: bash
+        run: |
+          set -euxo pipefail
+          cd "$ROOT"
+          ./gradlew --no-daemon --stacktrace clean assembleDebug
+
+      - name: Audit installable APK
+        shell: bash
+        run: |
+          set -euxo pipefail
+          APK="$(find "$ROOT" -type f -path '*/build/outputs/apk/debug/*.apk' | head -1)"
+          test -n "$APK"
+          mkdir -p artifact
+          FINAL_APK=artifact/Aurum-AI-37-v0.8.6-Android16-Stability.apk
+          cp "$APK" "$FINAL_APK"
+          BT="$ANDROID_HOME/build-tools/35.0.0"
+          "$BT/aapt2" dump badging "$FINAL_APK" | tee artifact/BADGING.txt
+          grep -q "package: name='com.xspaceart.aurumai37.integratedlab.debug' versionCode='20' versionName='0.8.6-android16-capture-stability-debug'" artifact/BADGING.txt
+          grep -q "launchable-activity: name='com.xspaceart.radar30.StandaloneActivity'" artifact/BADGING.txt
+          test "$(grep -c '^launchable-activity:' artifact/BADGING.txt)" -eq 1
+          "$BT/apksigner" verify --verbose --print-certs "$FINAL_APK" > artifact/SIGNATURE.txt
+          grep -qi '663a96b89181b13c759512229e465ebc895136545f36d1cbd29f7d7e1ad561c4' artifact/SIGNATURE.txt
+          "$BT/zipalign" -c -P 16 4 "$FINAL_APK"
+          unzip -t "$FINAL_APK" >/dev/null
+          sha256sum "$FINAL_APK" | tee artifact/SHA256SUMS.txt
+          (cd "$ROOT" && zip -qr "$GITHUB_WORKSPACE/artifact/Aurum-AI-37-v0.8.6-ANDROID16-STABILITY-GITHUB-BUILD.zip" . -x 'app/build/*' '.gradle/*' '**/.DS_Store')
+          printf '%s\n' \
+            'IMPLEMENTED=PASS' \
+            'BASE=V085_CAPTURE_CPE_ACTIVE_VALIDATED' \
+            'VERSION=0.8.6-android16-capture-stability' \
+            'ANDROID16_MEDIA_PROJECTION_ORDER=PASS' \
+            'CONTROL_ACTION_FGS_CRASH=FIXED' \
+            'EXPIRED_CAPTURE_GRANT=SAFE_STOP' \
+            'SAFE_RGBA_FRAME_PACKING=PASS' \
+            'UI_LEDGER_PARSE_OFF_MAIN=PASS' \
+            'STATE_BROADCAST_COALESCING=PASS' \
+            'OCR_HEARTBEAT_1400=PASS' \
+            'CLOCK_COUNTER_FILTER=PASS' \
+            'JITTER_STABILIZER=PASS' \
+            'SINGLE_SPIN_LIVE_GUARD=PASS' \
+            'CATCHUP_2_12_RECOVERY=PRESERVED' \
+            'CPE_MODE=ACTIVE_ASSIST' \
+            'CPE_WEIGHT_BOUNDED=PASS' \
+            'CPE_DIVERGENCE_VETO=PASS' \
+            'FULL_HOST_REGRESSION=PASS' \
+            'CAPTURE_INTEGRITY=PRESERVED' \
+            'PREMIUM_UI=PRESERVED' \
+            'MINI_BUBBLE=PRESERVED' \
+            'PACKAGE=PASS' \
+            'SIGNATURE=PASS' \
+            'UPDATE_COMPATIBILITY=PASS' \
+            'ALIGNMENT=PASS' \
+            'PHYSICAL_S25FE=PENDING' | tee artifact/BUILD_STATUS.txt
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Aurum-AI-37-v0.8.6-Android16-Stability
+          path: artifact/
+          if-no-files-found: error
+          retention-days: 30
