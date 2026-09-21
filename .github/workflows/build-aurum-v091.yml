@@ -1,0 +1,155 @@
+name: Build Aurum AI 37 v0.9.1 Final APK
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ main ]
+    paths:
+      - 'Aurum-AI-37-v0.9.1-MASTER-HARD-EXPERT-GITHUB-BUILD.zip'
+      - '.github/workflows/build-aurum-v091.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+          cache: gradle
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install Android 35 build tools
+        shell: bash
+        run: |
+          set -euo pipefail
+          yes | sdkmanager --licenses >/dev/null 2>&1 || true
+          sdkmanager 'platforms;android-35' 'build-tools;35.0.0'
+
+      - name: Extract complete v0.9.1 source
+        shell: bash
+        run: |
+          set -euo pipefail
+          SOURCE_ZIP='Aurum-AI-37-v0.9.1-MASTER-HARD-EXPERT-GITHUB-BUILD.zip'
+          test -f "$SOURCE_ZIP"
+          mkdir -p extracted
+          unzip -q "$SOURCE_ZIP" -d extracted
+          WRAPPER="$(find extracted -type f -name gradlew -print -quit)"
+          test -n "$WRAPPER"
+          chmod +x "$WRAPPER"
+          PROJECT_ROOT="$(realpath "$(dirname "$WRAPPER")")"
+          test -f "$PROJECT_ROOT/settings.gradle"
+          test -f "$PROJECT_ROOT/app/build.gradle"
+          echo "PROJECT_ROOT=$PROJECT_ROOT" >> "$GITHUB_ENV"
+
+      - name: Validate architecture and performance contracts
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd "$PROJECT_ROOT"
+          python3 tools/master_hard_expert_validation.py
+
+      - name: Run Java 17 host regression tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd "$PROJECT_ROOT"
+          TEST_DIR="$(mktemp -d)"
+          javac -encoding UTF-8 -source 17 -target 17 -d "$TEST_DIR" \
+            app/src/main/java/com/xspaceart/radar30/core/*.java \
+            app/src/main/java/com/xspaceart/radar30/cpe/*.java \
+            app/src/main/java/com/xspaceart/radar30/echo/PatternEchoEngine.java \
+            app/src/main/java/com/xspaceart/radar30/lock/*.java \
+            app/src/main/java/com/xspaceart/radar30/master/*.java \
+            tools/MasterHistoryPressureTest.java \
+            tools/MasterSpatialFusionTest.java \
+            tools/MasterPatternQualityTest.java \
+            tools/MasterFreshnessThermalTest.java \
+            tools/MasterSignalStateTest.java \
+            tools/V085CaptureContinuityTest.java \
+            tools/V085CpeActiveFusionTest.java \
+            tools/AurumLockCoreTest.java \
+            tools/V0712PatternEchoTest.java \
+            tools/V091DeepOptimizationTest.java
+          for test in \
+            MasterHistoryPressureTest \
+            MasterSpatialFusionTest \
+            MasterPatternQualityTest \
+            MasterFreshnessThermalTest \
+            MasterSignalStateTest \
+            V085CaptureContinuityTest \
+            V085CpeActiveFusionTest \
+            AurumLockCoreTest \
+            V0712PatternEchoTest \
+            V091DeepOptimizationTest; do
+            java -cp "$TEST_DIR" "$test"
+          done
+
+      - name: Build signed debug APK
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd "$PROJECT_ROOT"
+          ./gradlew --no-daemon --stacktrace clean assembleDebug
+
+      - name: Audit and package installable APK
+        shell: bash
+        run: |
+          set -euo pipefail
+          APK="$(find "$PROJECT_ROOT/app/build/outputs/apk/debug" -type f -name '*.apk' -print -quit)"
+          test -n "$APK"
+          mkdir -p artifact
+          OUT='artifact/Aurum-AI-37-v0.9.1-Master-Hard-Expert-FINAL.apk'
+          cp "$APK" "$OUT"
+          BT="$ANDROID_HOME/build-tools/35.0.0"
+          "$BT/aapt2" dump badging "$OUT" | tee artifact/BADGING.txt
+          grep -q "package: name='com.xspaceart.aurumai37.integratedlab.debug' versionCode='22' versionName='0.9.1-master-hard-expert-startup-fix-debug'" artifact/BADGING.txt
+          grep -q "launchable-activity: name='com.xspaceart.radar30.StandaloneActivity'" artifact/BADGING.txt
+          "$BT/apksigner" verify --verbose --print-certs "$OUT" | tee artifact/SIGNATURE.txt
+          grep -qi '663a96b89181b13c759512229e465ebc895136545f36d1cbd29f7d7e1ad561c4' artifact/SIGNATURE.txt
+          "$BT/zipalign" -c -P 16 4 "$OUT"
+          unzip -t "$OUT" >/dev/null
+          sha256sum "$OUT" | tee artifact/SHA256SUMS.txt
+          printf '%s\n' \
+            'VERSION=0.9.1-master-hard-expert-startup-fix-debug' \
+            'PACKAGE=com.xspaceart.aurumai37.integratedlab.debug' \
+            'STATIC_VALIDATION=PASS' \
+            'HOST_REGRESSION=PASS' \
+            'GRADLE_BUILD=PASS' \
+            'SIGNATURE=PASS' \
+            'ZIPALIGN_16K=PASS' \
+            'OCR_SINGLE_FLIGHT=PASS' \
+            'THERMAL_ADAPTIVE_CAPTURE=PASS' \
+            'WHEEL_SPATIAL_KERNEL=PASS' \
+            'ENTROPY_FILTER=PASS' \
+            'MULTI_ROUND_PROJECTION=PASS' \
+            > artifact/BUILD_STATUS.txt
+
+      - name: Upload final APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: Aurum-AI-37-v0.9.1-Final-APK
+          path: artifact/
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Upload Gradle reports on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: Aurum-v0.9.1-build-failure-reports
+          path: |
+            extracted/**/build/reports/**
+          if-no-files-found: ignore
+          retention-days: 7
